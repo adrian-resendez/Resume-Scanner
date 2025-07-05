@@ -18,8 +18,15 @@ def extract_phone(text):
 
 
 def extract_name(text):
-    # Simplified: Assume name is the first line
-    lines = text.strip().split('\n')
-    if lines:
-        return lines[0].strip()
+    # Look only in the first 10 lines of the resume
+    lines = text.strip().split('\n')[:10]
+    for line in lines:
+        line = line.strip()
+        # Skip empty lines or junk
+        if not line or any(word.lower() in line.lower() for word in ["contact", "email", "phone", "address"]):
+            continue
+        # Match two words that look like names (capitalized, no digits)
+        name_match = re.match(r'^([A-Z][a-z]+)\s+([A-Z][a-z]+)$', line)
+        if name_match:
+            return f"{name_match.group(1)} {name_match.group(2)}"
     return None
