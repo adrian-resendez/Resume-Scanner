@@ -3,6 +3,8 @@ from info_extractor import extract_email, extract_phone
 from name_extractor import extract_name
 from skills_extractor import extract_skills, SKILLS_DB
 from job_description_loader import get_text_from_url, get_text_from_user_input
+from gemini_utils import generate_fit_answer
+
 
 def get_job_description():
     choice = input("\nDo you want to (1) paste the job description or (2) provide a URL? Enter 1 or 2: ")
@@ -60,8 +62,40 @@ def main():
     print(f"Phone: {phone}")
     print(f"Skills: {', '.join(skills) if skills else 'None found'}")
 
-    # 👇 This is the important part:
-    match_resume_to_job(text)
+    # Get job description and skills matching
+    job_text = get_job_description()
+    if not job_text:
+        print("No job description provided, exiting.")
+        return
+
+    job_skills = extract_skills(job_text, SKILLS_DB)
+
+    matched = set(skills) & set(job_skills)
+    missing = set(job_skills) - set(skills)
+    total_required = len(set(job_skills))
+    total_matched = len(matched)
+    score_percentage = round((total_matched / total_required) * 100, 2) if total_required > 0 else 0
+
+    print("\n📋 Job Description Match Summary:")
+    print(f"- Total required skills: {total_required}")
+    print(f"- Matched skills: {total_matched}")
+    print(f"- Score: {total_matched} / {total_required} → {score_percentage}%")
+
+    print("\n✅ Skills You Have:")
+    print(", ".join(matched) or "None")
+
+    print("\n⚠️ Skills You’re Missing:")
+    print(", ".join(missing) or "None")
+
+    # Now generate the "Why I'm a good fit" answer using Gemini
+    resume_info = {
+        "name": name,
+        "skills": skills,
+        # Optionally add soft skills here if you implement extraction
+    }
+    fit_answer = generate_fit_answer(resume_info, job_text)
+    print("\n🤝 Why You're a Good Fit:")
+    print(fit_answer)
 
 if __name__ == '__main__':
     main()
