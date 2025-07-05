@@ -22,27 +22,3 @@ import spacy
 
 # Load spaCy model once
 nlp = spacy.load("en_core_web_sm")
-
-def extract_name(text):
-    # Step 1: Use spaCy to extract person entities
-    doc = nlp(text)
-    for ent in doc.ents:
-        if ent.label_ == "PERSON":
-            cleaned = ent.text.strip()
-            # Keep only first + last name (2 words)
-            name_parts = cleaned.split()
-            if 2 <= len(name_parts) <= 3:
-                # Strip out middle names or initials
-                return f"{name_parts[0]} {name_parts[-1]}"
-    
-    # Step 2: Fallback to regex match in top lines
-    lines = text.strip().split('\n')[:10]
-    for line in lines:
-        line = line.strip()
-        if not line or any(word.lower() in line.lower() for word in ["contact", "email", "phone", "address"]):
-            continue
-        name_match = re.match(r'^([A-Z][a-z]+)\s+([A-Z][a-z]+)$', line)
-        if name_match:
-            return f"{name_match.group(1)} {name_match.group(2)}"
-    
-    return None
