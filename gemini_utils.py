@@ -1,14 +1,14 @@
-import os
-from dotenv import load_dotenv
+import streamlit as st
 import google.generativeai as genai
 
-load_dotenv()
-api_key = os.getenv("GOOGLE_API_KEY")
+# Prefer secrets if available (Streamlit Cloud), otherwise fall back to .env (local dev)
+api_key = st.secrets.get("GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
 if not api_key:
-    raise ValueError("❌ API key not found in .env")
+    raise ValueError("❌ GOOGLE_API_KEY not found in Streamlit secrets or environment variables.")
 
 genai.configure(api_key=api_key)
+
 
 
 def generate_fit_answer(resume_info: dict, job_description: str) -> str:

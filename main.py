@@ -9,6 +9,12 @@ from name_extractor import extract_name
 from skills_extractor import extract_skills, SKILLS_DB
 from job_description_loader import get_text_from_url
 
+import streamlit as st
+import google.generativeai as genai
+
+genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+
+
 # Load environment variables
 load_dotenv()
 
