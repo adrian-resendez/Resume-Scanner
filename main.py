@@ -1,67 +1,82 @@
+import os
 import streamlit as st
+from dotenv import load_dotenv
+
 from gemini_utils import generate_fit_answer
 from file_loader import extract_text
 from info_extractor import extract_email, extract_phone
 from name_extractor import extract_name
 from skills_extractor import extract_skills, SKILLS_DB
-from job_description_loader import get_text_from_url, get_text_from_user_input
+from job_description_loader import get_text_from_url
 
-def main():
-    st.title("📄 Resume Scanner & Job Matcher")
+# Load environment variables
+load_dotenv()
 
-    uploaded_file = st.file_uploader("Upload Resume (.pdf or .docx)", type=["pdf", "docx"])
-    if not uploaded_file:
-        st.info("Please upload your resume to get started.")
-        return
-
-    # Extract resume text
-    resume_text = extract_text(uploaded_file)
-
-    # Extract info
-    name = extract_name(resume_text)
-    email = extract_email(resume_text)
-    phone = extract_phone(resume_text)
-    skills = extract_skills(resume_text, SKILLS_DB)
+def display_resume_info(text):
+    name = extract_name(text)
+    email = extract_email(text)
+    phone = extract_phone(text)
+    skills = extract_skills(text, SKILLS_DB)
 
     st.header("👤 Resume Info")
-    st.write(f"**Name:** {name}")
-    st.write(f"**Email:** {email}")
-    st.write(f"**Phone:** {phone}")
-    st.write(f"**Skills ({len(skills)}):** {', '.join(skills)}")
+    st.write(f"**Name:** {name or 'Not found'}")
+    st.write(f"**Email:** {email or 'Not found'}")
+    st.write(f"**Phone:** {phone or 'Not found'}")
+    st.write(f"**Skills ({len(skills)}):** {', '.join(skills) if skills else 'None'}")
 
-    # Job description input
-    option = st.radio("Choose input method:", ("Paste Text", "Provide URL"))
+    return name, email, phone, skills
 
-    if option == "Paste Text":
-        job_description = st.text_area("Paste the job description here")
+def process_job_description_input():
+    method = st.radio("🔹 Step 2: Provide Job Description", ["Paste Text", "Provide URL"])
+
+    if method == "Paste Text":
+        return st.text_area("Paste the job description here")
     else:
         url = st.text_input("Enter the job posting URL")
         if url:
-            job_description = get_text_from_url(url)
-        else:
-            job_description = ""
+            with st.spinner("Fetching job description from URL..."):
+                return get_text_from_url(url)
+        return ""
 
+def display_match_summary(resume_skills, job_description):
+    job_skills = extract_skills(job_description, SKILLS_DB)
+    matched = set(resume_skills) & set(job_skills)
+    missing = set(job_skills) - set(resume_skills)
+
+    score = round((len(matched) / len(job_skills)) * 100, 2) if job_skills else 0
+
+    st.header("📊 Match Summary")
+    st.metric("Matching Score", f"{len(matched)} / {len(job_skills)} ({score}%)")
+    st.success(f"✅ Matched Skills: {', '.join(matched) or 'None'}")
+    st.error(f"🛑 Missing Skills: {', '.join(missing) or 'None'}")
+
+    return job_skills
+
+def main():
+    st.set_page_config(page_title="Resume Scanner & Job Matcher", layout="centered")
+    st.title("📄 Resume Scanner & Job Matcher")
+    st.caption("Upload your resume and compare it with a job description to see how well you match!")
+
+    uploaded_file = st.file_uploader("🔹 Step 1: Upload Resume", type=["pdf", "docx"])
+    if not uploaded_file:
+        st.info("Please upload a .pdf or .docx resume to begin.")
+        return
+
+    with st.spinner("Processing your resume..."):
+        resume_text = extract_text(uploaded_file)
+        name, email, phone, skills = display_resume_info(resume_text)
+
+    job_description = process_job_description_input()
     if job_description:
-        job_skills = extract_skills(job_description, SKILLS_DB)
+        display_match_summary(skills, job_description)
 
-        matched = set(skills) & set(job_skills)
-        missing = set(job_skills) - set(skills)
-        total_required = len(job_skills)
-        total_matched = len(matched)
-        score = round((total_matched / total_required) * 100, 2) if total_required > 0 else 0
-
-        st.header("📊 Match Summary")
-        st.write(f"Matching Score: {total_matched} / {total_required} ({score}%)")
-        st.success(f"✅ Matched Skills: {', '.join(matched) or 'None'}")
-        st.error(f"🛑 Missing Skills: {', '.join(missing) or 'None'}")
-
-        # Generate and show the "Why you're a good fit" answer using Gemini
         resume_info = {
             "name": name,
             "skills": skills,
-            # add soft skills if you have them
+            "soft_skills": ["communication", "teamwork", "adaptability"]  # add auto-extraction later if needed
         }
-        with st.spinner("Generating 'Why you’re a good fit' answer..."):
+
+        with st.spinner("Generating a tailored response..."):
             fit_answer = generate_fit_answer(resume_info, job_description)
 
         st.header("🤝 Why You're a Good Fit")
