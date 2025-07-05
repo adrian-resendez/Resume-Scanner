@@ -1,19 +1,32 @@
 import pdfplumber
 import docx
 
-def extract_text(uploaded_file):
-    file_name = uploaded_file.name
+def extract_text(file_input):
+    # If input is a string path
+    if isinstance(file_input, str):
+        if file_input.lower().endswith('.pdf'):
+            with pdfplumber.open(file_input) as pdf:
+                text = ''
+                for page in pdf.pages:
+                    text += page.extract_text() or ''
+            return text
 
-    if file_name.endswith('.pdf'):
-        with pdfplumber.open(uploaded_file) as pdf:
-            text = ''
-            for page in pdf.pages:
-                text += page.extract_text() or ''
-        return text
+        elif file_input.lower().endswith('.docx'):
+            doc = docx.Document(file_input)
+            return '\n'.join([p.text for p in doc.paragraphs])
 
-    elif file_name.endswith('.docx'):
-        doc = docx.Document(uploaded_file)
-        return '\n'.join([p.text for p in doc.paragraphs])
-
+    # If input is an uploaded file (Streamlit)
     else:
-        raise ValueError("Unsupported file format. Only PDF and DOCX are supported.")
+        file_name = file_input.name
+        if file_name.endswith('.pdf'):
+            with pdfplumber.open(file_input) as pdf:
+                text = ''
+                for page in pdf.pages:
+                    text += page.extract_text() or ''
+            return text
+
+        elif file_name.endswith('.docx'):
+            doc = docx.Document(file_input)
+            return '\n'.join([p.text for p in doc.paragraphs])
+
+    raise ValueError("Unsupported file format. Only PDF and DOCX are supported.")
